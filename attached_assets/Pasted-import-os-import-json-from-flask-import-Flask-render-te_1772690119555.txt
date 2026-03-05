@@ -1,0 +1,93 @@
+import os
+import json
+from flask import Flask, render_template, request, jsonify
+from openai import OpenAI
+
+app = Flask(__name__)
+
+# ReplitのSecretsからAPIキーを取得
+client = OpenAI(api_key=os.environ.get("OPENAI_API_KEY"))
+
+# 審判官のシステムプロンプト
+SYSTEM_PROMPT = """
+あなたは冷徹な地獄の審判官であり、この「蠱毒（こどく）」の儀式の司会者です。
+二人のプレイヤー（AI）に、それぞれの顔写真の人相から連想される「悪行」を告白させ、競わせます。
+
+【ルール】
+1. 殺人、放火は禁止。それ以外の「胸糞の悪い」悪行を考案せよ。
+2. 告白は交互に行い、回を追うごとに罪を重くせよ。
+3. 後の告白が前の告白よりも「倫理的に欠如」していない、または「重さが足りない」と判断した瞬間、即座に試合終了を宣言せよ。
+4. 判定は刑法ではなく、あなたの独自の歪んだ倫理観で行う。
+
+【出力形式】
+必ず以下のJSON形式で応答せよ：
+{
+  "speaker": "A or B",
+  "content": "告白内容（一人称で、なぜその罪を犯したかの背景も含めて短く）",
+  "is_over": boolean,
+  "winner": "A or B or null",
+  "judge_comment": "審判の冷徹な一言（終了時のみ必須）"
+}
+"""
+
+@app.route('/')
+def index():
+    return render_template('index.html')
+
+@app.route('/kodoku', methods=['POST'])
+def kodoku():
+    data = request.json
+    history = data.get('history', [])
+    player_a_img = data.get('player_a_img') # Base64 data
+    player_b_img = data.get('player_b_img') # Base64 data
+    
+    # メッセージの構築
+    messages = [
+        {"role": "system", "content": SYSTEM_PROMPT},
+        {
+            "role": "user",
+            "content": [
+                {"type": "text", "text": "現在の対戦状況に基づき、次の告白を生成するか、決着をつけてください。"},
+                {"type": "image_url", "image_url": {"url": player_a_img}},
+                {"type": "image_url", "image_url": {"url": player_b_img}}
+            ]
+        }
+    ]
+    
+    # 過去の対話履歴を追加して文脈を維持
+    for msg in history:
+        messages.append({"role": "assistant", "content": json.dumps(msg, ensure_ascii=False)})
+
+    try:
+        response = client.chat.completions.create(
+            model="gpt-4o",
+            messages=messages,
+            response_format={ "type": "json_object" },
+            max_tokens=500
+        )
+        result = json.loads(response.choices[0].message.content)
+        return jsonify(result)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+if __name__ == '__main__':
+    app.run(host='0.0.0.0', port=8080)
+2. 負けたプレイヤーを退場させるフロントエンド処理のヒント
+JavaScript側で、is_over が true になった際の処理を以下のように実装することで、負けた側だけを初期化できます。
+
+JavaScript
+// フロントエンドの勝利・敗北処理イメージ
+function handleGameOver(result) {
+    const winner = result.winner; // 'A' または 'B'
+    
+    if (winner === 'A') {
+        alert("プレイヤーBは地獄へ堕ちました。新しい供物を捧げてください。");
+        document.getElementById('image-input-B').value = ""; // 入力をリセット
+        playerB_image = null; // 変数をクリア
+    } else {
+        alert("プレイヤーAは地獄へ堕ちました。新しい供物を捧げてください。");
+        document.getElementById('image-input-A').value = "";
+        playerA_image = null;
+    }
+    // 勝者はそのまま（変数を保持）し、次のゲームへ
+}

@@ -21,6 +21,14 @@ static/app.js           # Client-side game logic (auto-battle flow)
 - `POST /confess` - Generates a confession based on character profile and battle history
 - `POST /judge` - Evaluates the latest confession and determines if the battle continues
 
+## Game Flow
+1. Upload two face photos to start first match
+2. AI generates character profiles from face analysis
+3. AI creates escalating confessions on behalf of each character
+4. Judge evaluates each round; match ends when escalation fails
+5. Winner stays, loser is replaced by uploading a new challenger photo
+6. Win streak is tracked across matches
+
 ## Key Details
 - OpenAI integration uses `AI_INTEGRATIONS_OPENAI_BASE_URL` and `AI_INTEGRATIONS_OPENAI_API_KEY` env vars (auto-set by Replit)
 - Model: gpt-4o (vision-capable for photo analysis)

@@ -8,7 +8,12 @@ let gameState = {
     countA: 0,
     countB: 0,
     round: 1,
-    isProcessing: false
+    isProcessing: false,
+    winStreak: 0,
+    winnerSide: null,
+    challengerProfile: null,
+    challengerImage: null,
+    matchCount: 1
 };
 
 function handleFileSelect(player, input) {
@@ -95,12 +100,27 @@ function startGame() {
     document.getElementById('game-setup').style.display = 'none';
     document.getElementById('game-area').style.display = 'block';
 
+    setupBattleHeader();
+    runNextTurn();
+}
+
+function setupBattleHeader() {
     document.getElementById('battle-img-a').src = gameState.imageA;
     document.getElementById('battle-img-b').src = gameState.imageB;
     document.getElementById('battle-name-a').textContent = gameState.profileA.name;
     document.getElementById('battle-name-b').textContent = gameState.profileB.name;
+    document.getElementById('count-a').textContent = '0回';
+    document.getElementById('count-b').textContent = '0回';
+    document.getElementById('round-num').textContent = gameState.round;
 
-    runNextTurn();
+    const streakEl = document.getElementById('win-streak');
+    if (gameState.winStreak > 0) {
+        const winnerName = gameState.winnerSide === 'A' ? gameState.profileA.name : gameState.profileB.name;
+        streakEl.textContent = `${winnerName} ${gameState.winStreak}連勝中`;
+        streakEl.style.display = 'block';
+    } else {
+        streakEl.style.display = 'none';
+    }
 }
 
 async function runNextTurn() {
@@ -249,16 +269,138 @@ function addJudgeEntry(comment) {
 }
 
 function showResult(result) {
+    const winner = result.winner;
+    const loser = winner === 'A' ? 'B' : 'A';
+
+    if (gameState.winnerSide === winner) {
+        gameState.winStreak++;
+    } else {
+        gameState.winnerSide = winner;
+        gameState.winStreak = 1;
+    }
+
     document.getElementById('game-area').style.display = 'none';
     document.getElementById('result-area').style.display = 'block';
 
     document.getElementById('final-comment').textContent = result.judge_comment;
 
-    const winnerProfile = result.winner === 'A' ? gameState.profileA : gameState.profileB;
-    const winnerImg = result.winner === 'A' ? gameState.imageA : gameState.imageB;
+    const winnerProfile = winner === 'A' ? gameState.profileA : gameState.profileB;
+    const winnerImg = winner === 'A' ? gameState.imageA : gameState.imageB;
+    const loserProfile = loser === 'A' ? gameState.profileA : gameState.profileB;
+    const loserImg = loser === 'A' ? gameState.imageA : gameState.imageB;
 
     document.getElementById('winner-name').textContent = winnerProfile.name;
     document.getElementById('winner-img').src = winnerImg;
+
+    const streakBadge = document.getElementById('streak-badge');
+    streakBadge.textContent = gameState.winStreak + '連勝';
+
+    document.getElementById('loser-name').textContent = loserProfile.name;
+    document.getElementById('loser-img').src = loserImg;
+
+    gameState.challengerProfile = null;
+    gameState.challengerImage = null;
+    document.getElementById('preview-challenger').style.display = 'none';
+    document.getElementById('placeholder-challenger').style.display = 'flex';
+    document.getElementById('upload-challenger').classList.remove('has-image');
+    document.getElementById('profile-challenger').style.display = 'none';
+    document.getElementById('file-challenger').value = '';
+    document.getElementById('next-battle-btn').disabled = true;
+}
+
+function handleChallengerSelect(input) {
+    const file = input.files[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const dataUrl = e.target.result;
+        const preview = document.getElementById('preview-challenger');
+        const placeholder = document.getElementById('placeholder-challenger');
+        const uploadArea = document.getElementById('upload-challenger');
+
+        preview.src = dataUrl;
+        preview.style.display = 'block';
+        placeholder.style.display = 'none';
+        uploadArea.classList.add('has-image');
+
+        gameState.challengerImage = dataUrl;
+        analyzeChallengerPhoto(dataUrl);
+    };
+    reader.readAsDataURL(file);
+}
+
+async function analyzeChallengerPhoto(imageData) {
+    const profileEl = document.getElementById('profile-challenger');
+    const loading = document.getElementById('challenger-loading');
+
+    loading.style.display = 'block';
+
+    try {
+        const response = await fetch('/analyze', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ image: imageData })
+        });
+
+        const result = await response.json();
+
+        if (result.error) {
+            alert('鑑定エラー: ' + result.error);
+            loading.style.display = 'none';
+            return;
+        }
+
+        gameState.challengerProfile = result;
+
+        profileEl.innerHTML = `
+            <div class="profile-name">${escapeHtml(result.name)}</div>
+            <div class="profile-item"><span>性格:</span> ${escapeHtml(result.personality)}</div>
+            <div class="profile-item"><span>職業:</span> ${escapeHtml(result.occupation)}</div>
+            <div class="profile-item"><span>闇:</span> ${escapeHtml(result.darkness)}</div>
+        `;
+        profileEl.style.display = 'block';
+
+        loading.style.display = 'none';
+        document.getElementById('next-battle-btn').disabled = false;
+
+    } catch (err) {
+        alert('通信エラーが発生しました。もう一度お試しください。');
+        loading.style.display = 'none';
+    }
+}
+
+function startNextBattle() {
+    if (!gameState.challengerProfile || !gameState.challengerImage) return;
+
+    const loserSide = gameState.winnerSide === 'A' ? 'B' : 'A';
+
+    if (loserSide === 'A') {
+        gameState.profileA = gameState.challengerProfile;
+        gameState.imageA = gameState.challengerImage;
+    } else {
+        gameState.profileB = gameState.challengerProfile;
+        gameState.imageB = gameState.challengerImage;
+    }
+
+    gameState.history = [];
+    gameState.currentPlayer = 'A';
+    gameState.countA = 0;
+    gameState.countB = 0;
+    gameState.round = 1;
+    gameState.isProcessing = false;
+    gameState.matchCount++;
+    gameState.challengerProfile = null;
+    gameState.challengerImage = null;
+
+    document.getElementById('history-area').innerHTML = '';
+    document.getElementById('next-round-btn-area').style.display = 'none';
+
+    document.getElementById('result-area').style.display = 'none';
+    document.getElementById('game-area').style.display = 'block';
+
+    setupBattleHeader();
+    runNextTurn();
 }
 
 function resetGame() {
@@ -272,7 +414,12 @@ function resetGame() {
         countA: 0,
         countB: 0,
         round: 1,
-        isProcessing: false
+        isProcessing: false,
+        winStreak: 0,
+        winnerSide: null,
+        challengerProfile: null,
+        challengerImage: null,
+        matchCount: 1
     };
 
     document.getElementById('history-area').innerHTML = '';
