@@ -1,84 +1,153 @@
 let gameState = {
     history: [],
     currentPlayer: 'A',
-    playerAName: 'プレイヤーA',
-    playerBName: 'プレイヤーB',
+    profileA: null,
+    profileB: null,
+    imageA: null,
+    imageB: null,
     countA: 0,
     countB: 0,
-    round: 1
+    round: 1,
+    isProcessing: false
 };
 
-function startGame() {
-    const nameA = document.getElementById('player-a-name').value.trim() || 'プレイヤーA';
-    const nameB = document.getElementById('player-b-name').value.trim() || 'プレイヤーB';
+function handleFileSelect(player, input) {
+    const file = input.files[0];
+    if (!file) return;
 
-    gameState.playerAName = nameA;
-    gameState.playerBName = nameB;
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const dataUrl = e.target.result;
+        const preview = document.getElementById('preview-' + player);
+        const placeholder = document.getElementById('placeholder-' + player);
+        const uploadArea = document.getElementById('upload-' + player);
 
-    document.getElementById('label-a').textContent = nameA;
-    document.getElementById('label-b').textContent = nameB;
+        preview.src = dataUrl;
+        preview.style.display = 'block';
+        placeholder.style.display = 'none';
+        uploadArea.classList.add('has-image');
 
-    document.getElementById('game-setup').style.display = 'none';
-    document.getElementById('game-area').style.display = 'block';
+        if (player === 'a') {
+            gameState.imageA = dataUrl;
+        } else {
+            gameState.imageB = dataUrl;
+        }
 
-    updateTurnIndicator();
-    updateActiveScore();
+        analyzePhoto(player, dataUrl);
+    };
+    reader.readAsDataURL(file);
 }
 
-function updateTurnIndicator() {
-    const name = gameState.currentPlayer === 'A' ? gameState.playerAName : gameState.playerBName;
-    document.getElementById('turn-indicator').textContent = name + 'の番';
-}
+async function analyzePhoto(player, imageData) {
+    const profileEl = document.getElementById('profile-' + player);
+    const setupLoading = document.getElementById('setup-loading');
+    const loadingText = document.getElementById('setup-loading-text');
 
-function updateActiveScore() {
-    const scoreA = document.getElementById('score-a');
-    const scoreB = document.getElementById('score-b');
-    scoreA.classList.toggle('active', gameState.currentPlayer === 'A');
-    scoreB.classList.toggle('active', gameState.currentPlayer === 'B');
-}
-
-document.getElementById('confession-input').addEventListener('input', function() {
-    document.getElementById('char-count').textContent = this.value.length;
-});
-
-async function submitConfession() {
-    const input = document.getElementById('confession-input');
-    const confession = input.value.trim();
-
-    if (!confession) return;
-
-    const confessBtn = document.getElementById('confess-btn');
-    const inputArea = document.getElementById('input-area');
-    const loading = document.getElementById('loading');
-
-    confessBtn.disabled = true;
-    inputArea.style.display = 'none';
-    loading.style.display = 'block';
-
-    addHistoryEntry(gameState.currentPlayer, confession);
+    setupLoading.style.display = 'block';
+    loadingText.textContent = (player === 'a' ? '罪人A' : '罪人B') + 'の人相を鑑定中...';
 
     try {
-        const response = await fetch('/judge', {
+        const response = await fetch('/analyze', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                history: gameState.history,
-                confession: confession,
-                current_player: gameState.currentPlayer
-            })
+            body: JSON.stringify({ image: imageData })
         });
 
         const result = await response.json();
 
         if (result.error) {
-            alert('エラーが発生しました: ' + result.error);
-            inputArea.style.display = 'block';
-            loading.style.display = 'none';
-            confessBtn.disabled = false;
+            alert('鑑定エラー: ' + result.error);
+            setupLoading.style.display = 'none';
             return;
         }
 
-        gameState.history[gameState.history.length - 1].judge_comment = result.judge_comment;
+        if (player === 'a') {
+            gameState.profileA = result;
+        } else {
+            gameState.profileB = result;
+        }
+
+        profileEl.innerHTML = `
+            <div class="profile-name">${escapeHtml(result.name)}</div>
+            <div class="profile-item"><span>性格:</span> ${escapeHtml(result.personality)}</div>
+            <div class="profile-item"><span>職業:</span> ${escapeHtml(result.occupation)}</div>
+            <div class="profile-item"><span>闇:</span> ${escapeHtml(result.darkness)}</div>
+        `;
+        profileEl.style.display = 'block';
+
+        setupLoading.style.display = 'none';
+        checkReadyToStart();
+
+    } catch (err) {
+        alert('通信エラーが発生しました。もう一度お試しください。');
+        setupLoading.style.display = 'none';
+    }
+}
+
+function checkReadyToStart() {
+    const btn = document.getElementById('start-btn');
+    btn.disabled = !(gameState.profileA && gameState.profileB);
+}
+
+function startGame() {
+    if (!gameState.profileA || !gameState.profileB) return;
+
+    document.getElementById('game-setup').style.display = 'none';
+    document.getElementById('game-area').style.display = 'block';
+
+    document.getElementById('battle-img-a').src = gameState.imageA;
+    document.getElementById('battle-img-b').src = gameState.imageB;
+    document.getElementById('battle-name-a').textContent = gameState.profileA.name;
+    document.getElementById('battle-name-b').textContent = gameState.profileB.name;
+
+    runNextTurn();
+}
+
+async function runNextTurn() {
+    if (gameState.isProcessing) return;
+    gameState.isProcessing = true;
+
+    const loading = document.getElementById('battle-loading');
+    const loadingText = document.getElementById('battle-loading-text');
+    const nextBtn = document.getElementById('next-round-btn-area');
+    nextBtn.style.display = 'none';
+
+    const currentProfile = gameState.currentPlayer === 'A' ? gameState.profileA : gameState.profileB;
+    const playerName = currentProfile.name;
+
+    updateActivePlayer();
+
+    loading.style.display = 'block';
+    loadingText.textContent = `${playerName}が悪行を告白中...`;
+
+    try {
+        const confessResponse = await fetch('/confess', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                profile: currentProfile,
+                history: gameState.history,
+                current_player: gameState.currentPlayer
+            })
+        });
+
+        const confessResult = await confessResponse.json();
+
+        if (confessResult.error) {
+            alert('告白生成エラー: ' + confessResult.error);
+            loading.style.display = 'none';
+            gameState.isProcessing = false;
+            nextBtn.style.display = 'block';
+            return;
+        }
+
+        const confession = confessResult.confession;
+        gameState.history.push({
+            player: gameState.currentPlayer,
+            confession: confession
+        });
+
+        addConfessionEntry(gameState.currentPlayer, confession);
 
         if (gameState.currentPlayer === 'A') {
             gameState.countA++;
@@ -88,11 +157,36 @@ async function submitConfession() {
             document.getElementById('count-b').textContent = gameState.countB + '回';
         }
 
-        showJudgeComment(result.judge_comment);
+        loadingText.textContent = '審判官が判定中...';
 
-        if (result.is_over) {
+        const judgeResponse = await fetch('/judge', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                history: gameState.history,
+                profile_a: gameState.profileA,
+                profile_b: gameState.profileB
+            })
+        });
+
+        const judgeResult = await judgeResponse.json();
+
+        if (judgeResult.error) {
+            alert('審判エラー: ' + judgeResult.error);
             loading.style.display = 'none';
-            setTimeout(() => showResult(result), 1500);
+            gameState.isProcessing = false;
+            nextBtn.style.display = 'block';
+            return;
+        }
+
+        gameState.history[gameState.history.length - 1].judge_comment = judgeResult.judge_comment;
+        addJudgeEntry(judgeResult.judge_comment);
+
+        loading.style.display = 'none';
+
+        if (judgeResult.is_over) {
+            gameState.isProcessing = false;
+            setTimeout(() => showResult(judgeResult), 1500);
             return;
         }
 
@@ -102,47 +196,56 @@ async function submitConfession() {
             document.getElementById('round-num').textContent = gameState.round;
         }
 
-        updateTurnIndicator();
-        updateActiveScore();
-
-        input.value = '';
-        document.getElementById('char-count').textContent = '0';
-
-        loading.style.display = 'none';
-        inputArea.style.display = 'block';
-        confessBtn.disabled = false;
-        input.focus();
+        gameState.isProcessing = false;
+        nextBtn.style.display = 'block';
 
     } catch (err) {
         alert('通信エラーが発生しました。もう一度お試しください。');
-        inputArea.style.display = 'block';
         loading.style.display = 'none';
-        confessBtn.disabled = false;
+        gameState.isProcessing = false;
+        nextBtn.style.display = 'block';
     }
 }
 
-function addHistoryEntry(player, confession) {
-    gameState.history.push({ player, confession });
+function nextRound() {
+    runNextTurn();
+}
 
+function updateActivePlayer() {
+    const playerA = document.getElementById('battle-player-a');
+    const playerB = document.getElementById('battle-player-b');
+    playerA.classList.toggle('active', gameState.currentPlayer === 'A');
+    playerB.classList.toggle('active', gameState.currentPlayer === 'B');
+}
+
+function addConfessionEntry(player, confession) {
     const historyArea = document.getElementById('history-area');
-    const name = player === 'A' ? gameState.playerAName : gameState.playerBName;
+    const profile = player === 'A' ? gameState.profileA : gameState.profileB;
+    const imgSrc = player === 'A' ? gameState.imageA : gameState.imageB;
 
     const entry = document.createElement('div');
     entry.className = 'history-entry player-' + player.toLowerCase();
     entry.innerHTML = `
-        <div class="entry-header">${name}</div>
+        <div class="entry-header">
+            <img class="entry-avatar" src="${imgSrc}">
+            ${escapeHtml(profile.name)}
+        </div>
         <div class="entry-text">${escapeHtml(confession)}</div>
     `;
     historyArea.appendChild(entry);
     entry.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
-function showJudgeComment(comment) {
-    const area = document.getElementById('judge-comment-area');
-    const text = document.getElementById('judge-comment-text');
-    text.textContent = comment;
-    area.style.display = 'block';
-    area.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+function addJudgeEntry(comment) {
+    const historyArea = document.getElementById('history-area');
+    const entry = document.createElement('div');
+    entry.className = 'judge-entry';
+    entry.innerHTML = `
+        <div class="judge-label">審判官</div>
+        <div class="judge-text">${escapeHtml(comment)}</div>
+    `;
+    historyArea.appendChild(entry);
+    entry.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 }
 
 function showResult(result) {
@@ -151,30 +254,43 @@ function showResult(result) {
 
     document.getElementById('final-comment').textContent = result.judge_comment;
 
-    const winnerName = result.winner === 'A' ? gameState.playerAName : gameState.playerBName;
-    document.getElementById('winner-name').textContent = winnerName;
+    const winnerProfile = result.winner === 'A' ? gameState.profileA : gameState.profileB;
+    const winnerImg = result.winner === 'A' ? gameState.imageA : gameState.imageB;
+
+    document.getElementById('winner-name').textContent = winnerProfile.name;
+    document.getElementById('winner-img').src = winnerImg;
 }
 
 function resetGame() {
     gameState = {
         history: [],
         currentPlayer: 'A',
-        playerAName: 'プレイヤーA',
-        playerBName: 'プレイヤーB',
+        profileA: null,
+        profileB: null,
+        imageA: null,
+        imageB: null,
         countA: 0,
         countB: 0,
-        round: 1
+        round: 1,
+        isProcessing: false
     };
 
     document.getElementById('history-area').innerHTML = '';
-    document.getElementById('judge-comment-area').style.display = 'none';
-    document.getElementById('confession-input').value = '';
-    document.getElementById('char-count').textContent = '0';
     document.getElementById('count-a').textContent = '0回';
     document.getElementById('count-b').textContent = '0回';
     document.getElementById('round-num').textContent = '1';
-    document.getElementById('player-a-name').value = '';
-    document.getElementById('player-b-name').value = '';
+
+    document.getElementById('preview-a').style.display = 'none';
+    document.getElementById('preview-b').style.display = 'none';
+    document.getElementById('placeholder-a').style.display = 'flex';
+    document.getElementById('placeholder-b').style.display = 'flex';
+    document.getElementById('upload-a').classList.remove('has-image');
+    document.getElementById('upload-b').classList.remove('has-image');
+    document.getElementById('profile-a').style.display = 'none';
+    document.getElementById('profile-b').style.display = 'none';
+    document.getElementById('file-a').value = '';
+    document.getElementById('file-b').value = '';
+    document.getElementById('start-btn').disabled = true;
 
     document.getElementById('result-area').style.display = 'none';
     document.getElementById('game-area').style.display = 'none';
@@ -186,10 +302,3 @@ function escapeHtml(text) {
     div.textContent = text;
     return div.innerHTML;
 }
-
-document.getElementById('confession-input').addEventListener('keydown', function(e) {
-    if (e.key === 'Enter' && !e.shiftKey) {
-        e.preventDefault();
-        submitConfession();
-    }
-});

@@ -15,14 +15,14 @@ body {
 }
 
 .container {
-    max-width: 720px;
+    max-width: 760px;
     margin: 0 auto;
     padding: 20px 16px;
 }
 
 header {
     text-align: center;
-    margin-bottom: 32px;
+    margin-bottom: 28px;
 }
 
 header h1 {
@@ -35,12 +35,12 @@ header h1 {
 .subtitle {
     color: #8a7e6b;
     margin-top: 8px;
-    font-size: 0.95em;
+    font-size: 0.9em;
 }
 
 .player-setup {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     gap: 16px;
     justify-content: center;
     margin-bottom: 24px;
@@ -50,33 +50,92 @@ header h1 {
     background: rgba(30, 25, 20, 0.8);
     border: 1px solid rgba(200, 50, 40, 0.3);
     border-radius: 12px;
-    padding: 20px;
+    padding: 16px;
     text-align: center;
     flex: 1;
-    max-width: 250px;
+    max-width: 300px;
 }
 
 .player-card h2 {
-    font-size: 1.1em;
+    font-size: 1.05em;
     margin-bottom: 12px;
     color: #d4a574;
 }
 
-.player-card input {
+.upload-area {
     width: 100%;
-    padding: 10px 12px;
-    background: rgba(10, 10, 15, 0.8);
-    border: 1px solid rgba(200, 50, 40, 0.2);
-    border-radius: 8px;
-    color: #e0d8c8;
-    font-size: 1em;
-    text-align: center;
-    outline: none;
-    transition: border-color 0.3s;
+    aspect-ratio: 1;
+    max-height: 180px;
+    border: 2px dashed rgba(200, 50, 40, 0.3);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.3s;
+    overflow: hidden;
+    background: rgba(10, 10, 15, 0.6);
+    position: relative;
 }
 
-.player-card input:focus {
+.upload-area:hover {
     border-color: rgba(200, 50, 40, 0.6);
+    background: rgba(20, 15, 12, 0.8);
+}
+
+.upload-area.has-image {
+    border-style: solid;
+    border-color: rgba(200, 50, 40, 0.4);
+}
+
+.upload-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    color: #8a7e6b;
+    font-size: 0.85em;
+}
+
+.upload-icon {
+    font-size: 2em;
+}
+
+.photo-preview {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 8px;
+}
+
+.profile-card {
+    margin-top: 12px;
+    background: rgba(15, 12, 10, 0.9);
+    border: 1px solid rgba(212, 165, 116, 0.2);
+    border-radius: 8px;
+    padding: 12px;
+    text-align: left;
+    animation: fadeIn 0.5s ease-out;
+}
+
+.profile-card .profile-name {
+    font-size: 1.1em;
+    font-weight: bold;
+    color: #c9362c;
+    margin-bottom: 8px;
+    text-align: center;
+}
+
+.profile-card .profile-item {
+    font-size: 0.8em;
+    line-height: 1.5;
+    color: #b0a898;
+    margin-bottom: 4px;
+}
+
+.profile-card .profile-item span {
+    color: #d4a574;
+    font-weight: bold;
 }
 
 .vs {
@@ -84,6 +143,7 @@ header h1 {
     font-weight: bold;
     color: #c9362c;
     text-shadow: 0 0 10px rgba(200, 50, 40, 0.4);
+    margin-top: 80px;
 }
 
 button {
@@ -100,7 +160,7 @@ button {
     letter-spacing: 0.05em;
 }
 
-button:hover {
+button:hover:not(:disabled) {
     background: linear-gradient(135deg, #a02020, #e04030);
     box-shadow: 0 0 20px rgba(200, 50, 40, 0.4);
     transform: translateY(-1px);
@@ -113,32 +173,40 @@ button:disabled {
     box-shadow: none;
 }
 
-.scoreboard {
+.battle-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
     background: rgba(30, 25, 20, 0.6);
     border: 1px solid rgba(200, 50, 40, 0.2);
     border-radius: 10px;
-    padding: 12px 20px;
+    padding: 12px 16px;
     margin-bottom: 20px;
 }
 
-.player-score {
+.battle-player {
     display: flex;
     flex-direction: column;
     align-items: center;
     gap: 4px;
 }
 
-.player-label {
-    font-size: 0.9em;
+.battle-avatar {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid rgba(200, 50, 40, 0.4);
+}
+
+.battle-name {
+    font-size: 0.85em;
     color: #d4a574;
     font-weight: bold;
 }
 
 .confession-count {
-    font-size: 0.85em;
+    font-size: 0.8em;
     color: #8a7e6b;
 }
 
@@ -148,9 +216,14 @@ button:disabled {
     font-weight: bold;
 }
 
-.player-score.active .player-label {
+.battle-player.active .battle-name {
     color: #c9362c;
     text-shadow: 0 0 10px rgba(200, 50, 40, 0.5);
+}
+
+.battle-player.active .battle-avatar {
+    border-color: #c9362c;
+    box-shadow: 0 0 12px rgba(200, 50, 40, 0.5);
 }
 
 #history-area {
@@ -165,7 +238,7 @@ button:disabled {
     border-radius: 10px;
     padding: 14px 16px;
     border-left: 3px solid;
-    animation: fadeIn 0.4s ease-out;
+    animation: slideIn 0.5s ease-out;
 }
 
 .history-entry.player-a {
@@ -177,9 +250,19 @@ button:disabled {
 }
 
 .history-entry .entry-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
     font-size: 0.85em;
     font-weight: bold;
     margin-bottom: 6px;
+}
+
+.entry-avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    object-fit: cover;
 }
 
 .history-entry.player-a .entry-header {
@@ -196,79 +279,31 @@ button:disabled {
     color: #ccc5b5;
 }
 
-.judge-box {
+.judge-entry {
     background: rgba(40, 30, 15, 0.8);
     border: 1px solid rgba(212, 165, 116, 0.3);
     border-radius: 10px;
-    padding: 16px;
-    margin-bottom: 16px;
+    padding: 14px 16px;
     text-align: center;
-    animation: fadeIn 0.5s ease-out;
+    animation: slideIn 0.5s ease-out;
 }
 
-.judge-icon {
-    font-size: 1.8em;
-    margin-bottom: 8px;
+.judge-entry .judge-label {
+    font-size: 0.8em;
+    color: #8a7e6b;
+    margin-bottom: 6px;
 }
 
-#judge-comment-text {
+.judge-entry .judge-text {
     color: #d4a574;
-    font-size: 0.95em;
+    font-size: 0.9em;
     line-height: 1.6;
     font-style: italic;
 }
 
-.current-turn {
+#battle-loading, #setup-loading {
     text-align: center;
-    margin-bottom: 10px;
-}
-
-#turn-indicator {
-    font-size: 1em;
-    font-weight: bold;
-    color: #c9362c;
-    text-shadow: 0 0 8px rgba(200, 50, 40, 0.3);
-}
-
-#confession-input {
-    width: 100%;
-    padding: 14px;
-    background: rgba(15, 12, 10, 0.9);
-    border: 1px solid rgba(200, 50, 40, 0.2);
-    border-radius: 10px;
-    color: #e0d8c8;
-    font-size: 1em;
-    resize: none;
-    outline: none;
-    transition: border-color 0.3s;
-    line-height: 1.5;
-}
-
-#confession-input:focus {
-    border-color: rgba(200, 50, 40, 0.5);
-}
-
-.input-footer {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 10px;
-}
-
-.char-count {
-    font-size: 0.8em;
-    color: #8a7e6b;
-}
-
-#confess-btn {
-    padding: 10px 28px;
-    font-size: 0.95em;
-    margin: 0;
-}
-
-#loading {
-    text-align: center;
-    padding: 30px;
+    padding: 24px;
 }
 
 .loading-spinner {
@@ -281,9 +316,19 @@ button:disabled {
     animation: spin 1s linear infinite;
 }
 
-#loading p {
+#battle-loading p, #setup-loading p {
     color: #8a7e6b;
     font-size: 0.9em;
+}
+
+#next-round-btn-area {
+    text-align: center;
+    margin-top: 8px;
+}
+
+#next-round-btn {
+    padding: 12px 32px;
+    font-size: 1em;
 }
 
 .result-box {
@@ -305,17 +350,35 @@ button:disabled {
     color: #d4a574;
     font-size: 1em;
     line-height: 1.7;
-    margin-bottom: 20px;
+    margin-bottom: 24px;
     font-style: italic;
 }
 
 .winner-announce {
-    font-size: 1.3em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 16px;
     margin-bottom: 24px;
+}
+
+.winner-avatar {
+    width: 70px;
+    height: 70px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 3px solid #ffd700;
+    box-shadow: 0 0 20px rgba(255, 215, 0, 0.4);
+}
+
+.winner-label {
+    display: block;
+    font-size: 0.85em;
     color: #8a7e6b;
 }
 
 .winner-name {
+    font-size: 1.4em;
     color: #ffd700;
     font-weight: bold;
     text-shadow: 0 0 15px rgba(255, 215, 0, 0.5);
@@ -326,6 +389,11 @@ button:disabled {
     to { opacity: 1; transform: translateY(0); }
 }
 
+@keyframes slideIn {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
 @keyframes spin {
     to { transform: rotate(360deg); }
 }
@@ -333,6 +401,7 @@ button:disabled {
 @media (max-width: 520px) {
     .player-setup {
         flex-direction: column;
+        align-items: center;
     }
     .player-card {
         max-width: 100%;
@@ -340,8 +409,16 @@ button:disabled {
     }
     .vs {
         font-size: 1.2em;
+        margin-top: 0;
     }
     header h1 {
         font-size: 1.6em;
+    }
+    .battle-header {
+        padding: 10px 12px;
+    }
+    .battle-avatar {
+        width: 40px;
+        height: 40px;
     }
 }
