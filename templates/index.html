@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>地獄の審判 - 悪行バトル</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>⚖️ 地獄の審判</h1>
+            <p class="subtitle">二人の罪人よ、己の悪行を告白せよ</p>
+        </header>
+
+        <div id="game-setup">
+            <div class="player-setup">
+                <div class="player-card">
+                    <h2>👿 プレイヤーA</h2>
+                    <input type="text" id="player-a-name" placeholder="名前を入力" maxlength="20">
+                </div>
+                <div class="vs">VS</div>
+                <div class="player-card">
+                    <h2>👿 プレイヤーB</h2>
+                    <input type="text" id="player-b-name" placeholder="名前を入力" maxlength="20">
+                </div>
+            </div>
+            <button id="start-btn" onclick="startGame()">裁きを始める</button>
+        </div>
+
+        <div id="game-area" style="display: none;">
+            <div class="scoreboard">
+                <div class="player-score" id="score-a">
+                    <span class="player-label" id="label-a">プレイヤーA</span>
+                    <span class="confession-count" id="count-a">0回</span>
+                </div>
+                <div class="round-display">
+                    第 <span id="round-num">1</span> 回戦
+                </div>
+                <div class="player-score" id="score-b">
+                    <span class="player-label" id="label-b">プレイヤーB</span>
+                    <span class="confession-count" id="count-b">0回</span>
+                </div>
+            </div>
+
+            <div id="history-area"></div>
+
+            <div id="judge-comment-area" style="display: none;">
+                <div class="judge-box">
+                    <div class="judge-icon">⚖️</div>
+                    <p id="judge-comment-text"></p>
+                </div>
+            </div>
+
+            <div id="input-area">
+                <div class="current-turn">
+                    <span id="turn-indicator">プレイヤーAの番</span>
+                </div>
+                <textarea id="confession-input" placeholder="あなたの悪行を告白せよ..." rows="3" maxlength="500"></textarea>
+                <div class="input-footer">
+                    <span class="char-count"><span id="char-count">0</span>/500</span>
+                    <button id="confess-btn" onclick="submitConfession()">告白する</button>
+                </div>
+            </div>
+
+            <div id="loading" style="display: none;">
+                <div class="loading-spinner"></div>
+                <p>審判官が判定中...</p>
+            </div>
+        </div>
+
+        <div id="result-area" style="display: none;">
+            <div class="result-box">
+                <h2>⚖️ 最終判定</h2>
+                <p id="final-comment"></p>
+                <div class="winner-announce">
+                    <span>勝者:</span>
+                    <span id="winner-name" class="winner-name"></span>
+                </div>
+                <button onclick="resetGame()">もう一度裁く</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
